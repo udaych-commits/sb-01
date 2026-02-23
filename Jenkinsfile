@@ -9,7 +9,7 @@ pipeline {
         AWS_ACCOUNT_ID = "315164662006"
         AWS_REGION = "us-east-1"
         ECR_REPO = "sb-01"
-        IMAGE_TAG = "latest"
+        IMAGE_TAG = "${BUILD_NUMBER}
     }
 
     stages {
