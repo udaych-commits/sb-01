@@ -79,11 +79,12 @@ pipeline {
                        --docker-password $(aws ecr get-login-password --region ${AWS_REGION}) \
                        --namespace ${HELM_NAMESPACE}
 
-                     helm upgrade --install ${HELM_RELEASE} ./helm/my-app \
-                       --namespace ${HELM_NAMESPACE} \
-                       --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO} \
-                       --set image.tag=${IMAGE_TAG} \
-                       --set imagePullSecrets[0].name=ecr-secret
+                     helm upgrade --install sb-01 ./helm/my-app \
+                       --namespace sit \
+                       --set image.repository=315164662006.dkr.ecr.us-east-1.amazonaws.com/sb-01 \
+                       --set image.tag=${BUILD_NUMBER} \
+                       --set imagePullSecrets[0].name=ecr-secret \
+                       --set service.type=LoadBalancer
                      '''
                     }
                 }
