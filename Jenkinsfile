@@ -11,7 +11,7 @@ pipeline {
         ECR_REPO = "sb-01"
         IMAGE_TAG = "${BUILD_NUMBER}"
         HELM_RELEASE = 'sb-01'
-        HELM_NAMESPACE = 'prod'
+        HELM_NAMESPACE = 'sit'
         EKS_CLUSTER = 'sb-cluster'
     }
 
@@ -68,31 +68,30 @@ pipeline {
             }
         }
          stage('Deploy to EKS via Helm') {
-             steps {
-                 sh """
-                                    # Configure kubectl
-                                    aws eks --region $AWS_REGION update-kubeconfig --name $EKS_CLUSTER
+                    steps {
+                     sh """
+                            # 1️⃣ Configure kubectl for the EKS cluster
+                            aws eks --region ${AWS_REGION} update-kubeconfig --name ${EKS_CLUSTER}
 
-                                    # Ensure SIT namespace exists
-                                    kubectl get ns $HELM_NAMESPACE || kubectl create ns $HELM_NAMESPACE
+                            # 2️⃣ Ensure the namespace exists (SIT namespace in this example)
+                            kubectl get ns ${HELM_NAMESPACE} || kubectl create ns ${HELM_NAMESPACE}
 
-                                    # Create ECR secret if missing
-                                    kubectl get secret ecr-secret -n $HELM_NAMESPACE || \
-                                    aws ecr get-login-password --region $AWS_REGION | \
-                                    kubectl create secret docker-registry ecr-secret \
-                                        --docker-server=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com \
-                                        --docker-username=AWS \
-                                        --docker-password-stdin \
-                                        --namespace $HELM_NAMESPACE
+                            # 3️⃣ Create ECR pull secret if missing (works with older kubectl)
+                            kubectl get secret ecr-secret -n ${HELM_NAMESPACE} || \
+                            kubectl create secret docker-registry ecr-secret \
+                              --docker-server=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com \
+                              --docker-username=AWS \
+                              --docker-password $(aws ecr get-login-password --region ${AWS_REGION}) \
+                              --namespace ${HELM_NAMESPACE}
 
-                                    # Deploy via Helm
-                                    helm upgrade --install $HELM_RELEASE ./helm/my-app \
-                                      --namespace $HELM_NAMESPACE \
-                                      --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO} \
-                                      --set image.tag=$IMAGE_TAG \
-                                      --set imagePullSecrets[0].name=ecr-secret
-                                    """
-                                }
+                            # 4️⃣ Deploy the application via Helm
+                            helm upgrade --install ${HELM_RELEASE} ./helm/my-app \
+                              --namespace ${HELM_NAMESPACE} \
+                              --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO} \
+                              --set image.tag=${IMAGE_TAG} \
+                              --set imagePullSecrets[0].name=ecr-secret
+                            """
+                    }
                 }
 
                 stage('Verify Deployment') {
