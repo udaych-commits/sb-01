@@ -69,28 +69,22 @@ pipeline {
         }
          stage('Deploy to EKS via Helm') {
                     steps {
-                     sh """
-                            # 1️⃣ Configure kubectl for the EKS cluster
-                            aws eks --region ${AWS_REGION} update-kubeconfig --name ${EKS_CLUSTER}
+                     sh '''
+                     aws eks --region ${AWS_REGION} update-kubeconfig --name ${EKS_CLUSTER}
+                     kubectl get ns ${HELM_NAMESPACE} || kubectl create ns ${HELM_NAMESPACE}
+                     kubectl get secret ecr-secret -n ${HELM_NAMESPACE} || \
+                     kubectl create secret docker-registry ecr-secret \
+                       --docker-server=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com \
+                       --docker-username=AWS \
+                       --docker-password $(aws ecr get-login-password --region ${AWS_REGION}) \
+                       --namespace ${HELM_NAMESPACE}
 
-                            # 2️⃣ Ensure the namespace exists (SIT namespace in this example)
-                            kubectl get ns ${HELM_NAMESPACE} || kubectl create ns ${HELM_NAMESPACE}
-
-                            # 3️⃣ Create ECR pull secret if missing (works with older kubectl)
-                            kubectl get secret ecr-secret -n ${HELM_NAMESPACE} || \
-                            kubectl create secret docker-registry ecr-secret \
-                              --docker-server=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com \
-                              --docker-username=AWS \
-                              --docker-password $(aws ecr get-login-password --region ${AWS_REGION}) \
-                              --namespace ${HELM_NAMESPACE}
-
-                            # 4️⃣ Deploy the application via Helm
-                            helm upgrade --install ${HELM_RELEASE} ./helm/my-app \
-                              --namespace ${HELM_NAMESPACE} \
-                              --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO} \
-                              --set image.tag=${IMAGE_TAG} \
-                              --set imagePullSecrets[0].name=ecr-secret
-                            """
+                     helm upgrade --install ${HELM_RELEASE} ./helm/my-app \
+                       --namespace ${HELM_NAMESPACE} \
+                       --set image.repository=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO} \
+                       --set image.tag=${IMAGE_TAG} \
+                       --set imagePullSecrets[0].name=ecr-secret
+                     '''
                     }
                 }
 
