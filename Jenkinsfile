@@ -13,12 +13,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/udaych-commits/sb-01.git'
-            }
-        }
-
         stage('Build Maven') {
             steps {
                 sh 'mvn clean package -DskipTests'
